@@ -1,0 +1,53 @@
+---
+- name: set facts
+  set_fact:
+    HOST_IP: "{{ hostvars['localhost']['HOST_IP'] }}"
+    DB_HOST: "{{ hostvars['localhost']['DB_HOST'] }}"
+
+- name: show alb dns
+  debug:
+    msg:
+      - "HOST_IP: {{ HOST_IP }}"
+      - "DB_HOST: {{ DB_HOST }}"
+      - "current host:{{ inventory_hostname }} "
+
+- name: copy necessery files to app instance
+  copy:
+    src: "{{ item }}"
+    dest: /home/ubuntu/app/
+    owner: ubuntu
+    group: ubuntu        
+    mode: '0644'
+  loop:
+    - docker-compose.yml
+    - nginx
+    - wordpress
+
+- name: copy templated files to app instance
+  template:
+    src: ".env"
+    dest: "/home/ubuntu/app/.env"
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+
+- name: change file permissions 
+  file:
+    path: "/home/ubuntu/app/wordpress/tools/configure.sh"
+    owner: ubuntu
+    group: ubuntu
+    mode: '0774'
+  
+
+# - name: run docker-compose in ~/app/
+
+- name: Run 'docker-compose up'
+  docker_compose:
+    project_src: /home/ubuntu/app
+    build: true
+    state: present
+  register: output
+
+- name: debugging 
+  debug:
+    var: output

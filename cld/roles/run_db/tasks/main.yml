@@ -1,0 +1,57 @@
+---
+- name: set facts
+  set_fact:
+    HOST_IP: "{{ hostvars['localhost']['HOST_IP'] }}"
+    DB_HOST: "{{ hostvars['localhost']['DB_HOST'] }}"
+
+- name: show alb dns
+  debug:
+    msg:
+      - "HOST_IP: {{ HOST_IP }}"
+      - "DB_HOST: {{ DB_HOST }}"
+
+- name: copy necessery files to db instance
+  copy:
+    src: "{{ item }}"
+    dest: /home/ubuntu/db/
+    owner: ubuntu
+    group: ubuntu        
+    mode: '0644'
+  loop:
+    - docker-compose.yml
+    - mariadb
+
+- name: copy templated files to db instance
+  template:
+    src: "{{ item.file }}"
+    dest: "/home/ubuntu/db/{{ item.dest }}"
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+  loop:
+    - file: init.sql
+      dest: mariadb/conf/init.sql
+    - file: wordpress.sql
+      dest: mariadb/conf/wordpress.sql
+    - file: .env
+      dest: .env
+
+- name: change file permissions 
+  file:
+    path: /home/ubuntu/db/mariadb/tools/run.sh
+    owner: ubuntu
+    group: ubuntu
+    mode: '0774'
+
+# - name: run docker-compose in ~/db/
+
+- name: Run 'docker-compose up'
+  docker_compose:
+    project_src: /home/ubuntu/db
+    build: true
+    state: present
+  register: output
+
+- name: debugging 
+  debug:
+    var: output

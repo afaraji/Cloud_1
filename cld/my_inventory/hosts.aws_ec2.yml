@@ -1,0 +1,11 @@
+---
+plugin: aws_ec2
+vars_files:
+  - config.yml
+regions:
+  - "us-east-1"
+keyed_groups:
+  - key: tags.instance
+    prefix: aws
+  - key: tags.type
+    prefix: aws

@@ -1,0 +1,161 @@
+---
+- name: create VPC
+  tags:
+    - provision
+  ec2_vpc_net:
+    name: my_vpc
+    state: present
+    cidr_block: "{{ vpc_cidr }}"
+    region: "{{ region }}"
+    access_key: "{{ ACCESS_KEY }}"
+    secret_key: "{{ SECRET_KEY }}"
+    tags:
+      name: my_vpc
+  register: vpc_info
+
+
+- name: Create public subnet
+  tags:
+    - provision
+  ec2_vpc_subnet:
+    state: present
+    access_key: "{{ ACCESS_KEY }}"
+    secret_key: "{{ SECRET_KEY }}"
+    vpc_id: "{{ vpc_info.vpc.id }}"
+    cidr: "{{ item.cidr_block }}"
+    region: "{{ region }}"
+    az: "{{ item.availability_zone }}"
+    map_public: true
+    tags:
+      Name: "{{ item.availability_zone }} Public Subnet"
+  loop: "{{ public_subnets }}"
+  register: public_subnets_info
+
+# - name: Create private subnets
+#   tags:
+#     - provision
+#   ec2_vpc_subnet:
+#     state: present
+#     access_key: "{{ ACCESS_KEY }}"
+#     secret_key: "{{ SECRET_KEY }}"
+#     vpc_id: "{{ vpc_info.vpc.id }}"
+#     cidr: "{{ item.cidr_block }}"
+#     region: "{{ region }}"
+#     az: "{{ item.availability_zone }}"
+#     map_public: false
+#     tags:
+#       Name: "{{ item.availability_zone }} Private Subnet"
+#   loop: "{{ private_subnets }}"
+#   register: private_subnets_info
+
+- name: Create Internet gateway
+  tags:
+    - provision
+  ec2_vpc_igw:
+    vpc_id: "{{ vpc_info.vpc.id }}"
+    region: "{{ region }}"
+    state: present
+    access_key: "{{ ACCESS_KEY }}"
+    secret_key: "{{ SECRET_KEY }}"
+    tags:
+      name: Internet gateway
+  register: igw_info
+
+# - name: Create NAT Gateway
+#   tags:
+#   - provision
+#   ec2_vpc_nat_gateway:
+#     state: present
+#     aws_access_key: "{{ ACCESS_KEY }}"
+#     aws_secret_key: "{{ SECRET_KEY }}"
+#     region: "{{ region }}"
+#     if_exist_do_not_create: true
+#     subnet_id: "{{ public_subnets_info.results[0].subnet.id }}"
+#     wait: true
+#   register: nat_info
+
+
+- name: Create Route Table for Public Subnet
+  tags:
+    - provision
+  ec2_vpc_route_table:
+    state: present
+    aws_access_key: "{{ ACCESS_KEY }}"
+    aws_secret_key: "{{ SECRET_KEY }}"
+    region: "{{ region }}"
+    vpc_id: "{{ vpc_info.vpc.id }}"
+    tags:
+      name: Public routing for "{{ item.subnet.availability_zone }}"
+    subnets:
+      - "{{ item.subnet.id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ igw_info.gateway_id }}"
+  loop: "{{ public_subnets_info.results }}"
+  register: public_rt_info
+
+
+# - name: Create Route Table for Public Subnet1
+#   tags:
+#     - provision
+#   ec2_vpc_route_table:
+#     state: present
+#     aws_access_key: "{{ ACCESS_KEY }}"
+#     aws_secret_key: "{{ SECRET_KEY }}"
+#     region: "{{ region }}"
+#     vpc_id: "{{ vpc_info.vpc.id }}"
+#     tags:
+#       name: Public routing 1
+#     subnets:
+#       - "{{ public_subnets_info.results[0].subnet.id }}"
+#     routes:
+#       - dest: 0.0.0.0/0
+#         gateway_id: "{{ igw_info.gateway_id }}"
+#   register: public_rt1_info
+
+# - name: Create Route Table for Public Subnet2
+#   tags:
+#     - provision
+#   ec2_vpc_route_table:
+#     state: present
+#     aws_access_key: "{{ ACCESS_KEY }}"
+#     aws_secret_key: "{{ SECRET_KEY }}"
+#     region: "{{ region }}"
+#     vpc_id: "{{ vpc_info.vpc.id }}"
+#     tags:
+#       name: Public routing 2
+#     subnets:
+#       - "{{ public_subnets_info.results[1].subnet.id }}"
+#     routes:
+#       - dest: 0.0.0.0/0
+#         gateway_id: "{{ igw_info.gateway_id }}"
+#   register: public_rt2_info
+
+# - name: Create Route Table for Private Subnet
+#   tags:
+#     - provision
+#   ec2_vpc_route_table:
+#       state: present
+#       aws_access_key: "{{ ACCESS_KEY }}"
+#       aws_secret_key: "{{ SECRET_KEY }}"
+#       region: "{{ region }}"
+#       vpc_id: "{{ vpc_info.vpc.id }}"
+#       tags:
+#           Name: Private routing
+#       subnets:
+#           - "{{ private_subnets_info.results[0].subnet.id }}"
+#       routes:
+#           - dest: 0.0.0.0/0
+#             gateway_id: "{{ nat_info.nat_gateway_id }}"
+#   register: private_rt_info
+
+# create NAT gateway for private_subnets   v
+# create routing tables for private_subnets  v
+# create routing tables for public_subnets  v
+# create security groupe for private_subnets (22 - 3306)  v
+# create security groupe for public_subnets (22 - 80 - 443) v
+# create 3 EC2 instances  x
+# install dep
+# run app on 2 EC2s
+# run db on 1 EC2
+# khotbih@gmail.com

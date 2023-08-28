@@ -1,0 +1,115 @@
+---
+- name: create key pair using key_material obtained using 'file' lookup plugin
+  amazon.aws.ec2_key:
+    region: "{{ region }}"
+    aws_access_key: "{{ ACCESS_KEY }}"
+    aws_secret_key: "{{ SECRET_KEY }}"
+    name: key_pair
+    key_material: "{{ lookup('file', './id_rsa.pub') }}"
+    state: present
+  register: key_pair
+# - name: Create Mysql/mariaDB instance
+#   ec2_instance:
+#     state: present
+#     aws_access_key: "{{ ACCESS_KEY }}"
+#     aws_secret_key: "{{ SECRET_KEY }}"
+#     region: "{{ region }}"
+#     name: "database"
+#     key_name: "{{ key_pair.key.name }}"
+#     vpc_subnet_id: "{{ private_subnets_info.results[0].subnet.id }}"
+#     instance_type : "{{ ec2_instance_type }}"
+#     image_id: "{{ ec2_instance_image }}"
+#     security_group: "{{ sg_private_info.group_id }}"
+
+
+- name: Create EC2 Instance in public subnet AZ-1
+  tags: 
+    - provision
+  ec2_instance:
+    state: present
+    aws_access_key: "{{ ACCESS_KEY }}"
+    aws_secret_key: "{{ SECRET_KEY }}"
+    region: "{{ region }}"
+    name: "az1_ec2_instance"
+    key_name: "{{ key_pair.key.name }}"
+    vpc_subnet_id: "{{ public_subnets_info.results[0].subnet.id }}"
+    instance_type : "{{ ec2_instance_type }}"
+    image_id: "{{ ec2_instance_image }}"
+    security_group: "{{ sg_public_info.group_id }}"
+    network:
+      assign_public_ip: true
+    tags:
+      instance: "ec2_az1"
+      type: "app"
+    wait: true
+  register: az1_ec2_instance_info
+
+- name: info az1-ec2 
+  tags:
+    - info
+    - provision
+  debug:
+    msg: "az1 instance public ip: {{ az1_ec2_instance_info.instances[0].public_ip_address }}"
+
+
+- name: Create EC2 Instance in public subnet AZ-2
+  tags:
+    - provision
+  ec2_instance:
+    state: present
+    aws_access_key: "{{ ACCESS_KEY }}"
+    aws_secret_key: "{{ SECRET_KEY }}"
+    region: "{{ region }}"
+    name: "az2_ec2_instance"
+    key_name: "{{ key_pair.key.name }}"
+    vpc_subnet_id: "{{ public_subnets_info.results[1].subnet.id }}"
+    instance_type : "{{ ec2_instance_type }}"
+    image_id: "{{ ec2_instance_image }}"
+    security_group: "{{ sg_public_info.group_id }}"
+    network:
+      assign_public_ip: true
+    tags:
+      instance: "ec2_az2"
+      type: "app"
+    wait: true
+  register: az2_ec2_instance_info
+
+- name: info az2-ec2
+  tags:
+    - info
+    - provision
+  debug:
+    msg: "az2 instance public ip: {{ az2_ec2_instance_info.instances[0].public_ip_address }}"
+
+- name: Create Mysql/mariaDB instance
+  tags:
+    - provision
+  ec2_instance:
+    state: present
+    aws_access_key: "{{ ACCESS_KEY }}"
+    aws_secret_key: "{{ SECRET_KEY }}"
+    region: "{{ region }}"
+    name: "db_ec2_instance"
+    key_name: "{{ key_pair.key.name }}"
+    vpc_subnet_id: "{{ public_subnets_info.results[0].subnet.id }}"
+    instance_type : "{{ ec2_instance_type }}"
+    image_id: "{{ ec2_instance_image }}"
+    security_group: "{{ sg_private_info.group_id }}"
+    network:
+      assign_public_ip: true
+    tags:
+      instance: "ec2_az1"
+      type: "db"
+    wait: true
+  register: db_instance_info
+
+- name: info db instance
+  tags:
+    - info
+    - provision
+  debug:
+    msg: 
+      - "db instance public dns : {{ db_instance_info.instances[0].public_dns_name }}"
+      - "db instance public ip  : {{ db_instance_info.instances[0].public_ip_address }}"
+      - "db instance private dns: {{ db_instance_info.instances[0].private_dns_name }}"
+      - "db instance private ip : {{ db_instance_info.instances[0].private_ip_address }}"

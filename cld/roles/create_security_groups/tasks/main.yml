@@ -1,0 +1,53 @@
+---
+- name: Create Security Group for public Instances
+  tags:
+    - provision
+  ec2_group:
+    state: present
+    aws_access_key: "{{ ACCESS_KEY }}"
+    aws_secret_key: "{{ SECRET_KEY }}"
+    region: "{{ region }}"
+    name: "SG_public"
+    description: "public ec2 security group"
+    vpc_id: "{{ vpc_info.vpc.id }}"
+    rules:
+      - proto: tcp
+        ports:
+          - 22
+          - 80
+          - 443
+          - 8080
+        cidr_ip: 0.0.0.0/0
+    rules_egress:
+      - proto: all
+        cidr_ip: 0.0.0.0/0
+    tags:
+      Name: "SG_public"
+  register: sg_public_info
+
+- name: Create Security Group for private Instances
+  tags:
+    - provision
+  ec2_group:
+    state: present
+    aws_access_key: "{{ ACCESS_KEY }}"
+    aws_secret_key: "{{ SECRET_KEY }}"
+    region: "{{ region }}"
+    name: "SG_private"
+    description: "private ec2 security group"
+    vpc_id: "{{ vpc_info.vpc.id }}"
+    rules:
+      - proto: tcp
+        from_port: 22
+        to_port: 22
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        from_port: 3306
+        to_port: 3306
+        cidr_ip: 10.0.0.0/8
+    rules_egress:
+      - proto: all
+        cidr_ip: 0.0.0.0/0
+    tags:
+      Name: "SG_private"
+  register: sg_private_info

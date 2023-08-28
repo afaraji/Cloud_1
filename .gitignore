@@ -1,0 +1,4 @@
+.*vagrant
+secret*
+.DS_Store
+*.vpd

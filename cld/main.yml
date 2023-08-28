@@ -1,0 +1,83 @@
+---
+- name: Create VPC, private and public subnets
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - config.yml
+  roles:
+    - role: setup_networks
+      access_key: "{{ ACCESS_KEY }}"
+      secret_key: "{{ SECRET_KEY }}"
+      tags: setup_networks
+
+- name: Create security groups
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - config.yml
+  roles:
+    - role: create_security_groups
+      access_key: "{{ ACCESS_KEY }}"
+      secret_key: "{{ SECRET_KEY }}"
+      tags: create_security_groups
+
+- name: Create EC2 Instances (3 in total distributed across two regions)
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - config.yml
+  roles:
+    - role: create_instances
+      access_key: "{{ ACCESS_KEY }}"
+      secret_key: "{{ SECRET_KEY }}"
+      tags: create_instances
+
+- name: create Application Load Balancer and target group
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - config.yml
+  roles:
+    - role: create_lb_and_target_groups
+      access_key: "{{ ACCESS_KEY }}"
+      secret_key: "{{ SECRET_KEY }}"
+      tags: create_lb_and_target_groups
+
+
+- name: Install dependencies (docker/docker-compose/python)
+  strategy: free
+  hosts: aws_ec2
+  # remote_user: ubuntu
+  # vars:
+  #   ansible_ssh_private_key_file: id_rsa
+  roles:
+    - role: install_dependencies
+      access_key: "{{ ACCESS_KEY }}"
+      secret_key: "{{ SECRET_KEY }}"
+      tags: install_dependencies
+
+- name: run database
+  hosts: aws_db
+  vars_files:
+    - config.yml
+  roles:
+    - role: run_db
+      access_key: "{{ ACCESS_KEY }}"
+      secret_key: "{{ SECRET_KEY }}"
+      tags: run_db
+        
+        
+- name: run Wordpress & PhpMyadmin
+  hosts: aws_app
+  vars_files:
+    - config.yml
+  roles:
+    - role: run_app
+      access_key: "{{ ACCESS_KEY }}"
+      secret_key: "{{ SECRET_KEY }}"
+      tags: run_wordpress
+          

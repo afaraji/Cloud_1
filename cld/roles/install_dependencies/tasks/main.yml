@@ -1,0 +1,81 @@
+---
+# - name: show alb dns
+#   debug:
+#     msg:
+#       - "HOST_IP: {{ alb_info.dns_name }}"
+#       - "DB_HOST: {{ db_instance_info.instances[0].private_ip_address }}"
+#       - "HOST_IP: {{ HOST_IP }}"
+#       - "DB_HOST: {{ DB_HOST }}"
+
+- name: Update apt package index
+  become: yes
+  apt:
+    update_cache: yes
+
+- name: Install Python3
+  become: yes
+  apt:
+    name: python3
+    state: present
+
+- name: Install pip3
+  become: yes
+  apt:
+    name: python3-pip
+    state: present
+###
+- name: Install Docker dependencies
+  apt:
+    name:
+    - apt-transport-https
+    - ca-certificates
+    - curl
+    - gnupg-agent
+    - software-properties-common
+    state: present
+
+- name: Install Docker GPG key
+  shell: curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+
+- name: Add Docker repository
+  apt_repository:
+    repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable
+    state: present
+
+- name: Install Docker
+  package:
+    name: docker-ce
+    state: latest
+
+- name: Install Docker Compose
+  pip:
+    name: docker-compose
+    state: present
+####
+
+# - name: Install Docker
+#   become: yes
+#   apt:
+#     name: docker.io
+#     state: present
+
+- name: Add user "ubuntu" to "docker" group
+  user:
+    name: "ubuntu"
+    group: "docker"
+    append: yes
+
+# - name: Install Docker Compose
+#   become: yes
+#   # apt:
+#   #   name: docker-compose
+#   #   state: present
+#   shell: curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && chmod +x /usr/local/bin/docker-compose
+
+
+
+# - name: Install docker-py using pip
+#   become: yes
+#   pip:
+#     name: docker-py
+#     state: absent

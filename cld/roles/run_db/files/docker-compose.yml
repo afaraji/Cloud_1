@@ -1,0 +1,38 @@
+version: '3'
+
+services:
+
+# Database
+  db:
+    build: ./mariadb/
+    image: mariadb
+    container_name: mariadb
+    volumes:
+      - data:/var/lib/mysql
+    restart: always
+    ports:
+      - '3306:3306'
+    # networks:
+    #   - wpsite
+    env_file:
+      - .env
+
+
+# Network setup
+# networks:
+#   wpsite:
+
+# Volumes setup
+volumes:
+  data:
+    # name: data
+    # driver: local
+    # driver_opts:
+    #   o: bind
+    #   type: none
+    #   device: /data/db_data
+
+
+
+# sudo docker-compose down --rmi all --> stop all and delete all images
+# docker network inspect srcs_wpsite | grep "Name\|IPv4Address"

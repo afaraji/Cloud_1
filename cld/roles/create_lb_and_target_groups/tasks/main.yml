@@ -1,0 +1,114 @@
+---
+# tasks file for create_target_groups
+# - name: Create an Application Load Balancer and associate with target groups
+#   hosts: localhost
+#   gather_facts: false
+#   vars:
+#     region: us-west-2
+#     vpc_id: vpc-01234567890abcdef0
+#     lb_name: my-alb
+#     lb_subnets:
+#       - subnet-01234567890abcdef1
+#       - subnet-01234567890abcdef2
+#     target_group_name1: my-target-group-1
+#     target_group_name2: my-target-group-2
+#     instance_id1: i-01234567890abcdef0
+#     instance_id2: i-01234567890abcdef1
+#     listener_protocol: HTTP
+#     listener_port: 80
+#   tasks:
+# - name: Create the Application Load Balancer    *
+#   elasticloadbalancingv2_load_balancer:
+#     aws_access_key: "{{ ACCESS_KEY }}"
+#     aws_secret_key: "{{ SECRET_KEY }}"
+#     name: "my_alb"
+#     subnets: "{{ item.subnet.id }}"
+#     scheme: internet-facing
+#     security_groups: [sg-01234567890abcdef0]
+#     state: present
+#     region: "{{ region }}"
+#   loop: "{{ public_subnets_info.results }}"
+#   register: alb
+
+- name: Create target group 
+  elb_target_group:
+    aws_access_key: "{{ ACCESS_KEY }}"
+    aws_secret_key: "{{ SECRET_KEY }}"
+    name: alb-target-group
+    protocol: https
+    port: 443
+    vpc_id: "{{ vpc_info.vpc.id }}"
+    region: "{{ region }}"
+    health_check_protocol: https
+    health_check_path: /ok.html
+    successful_response_codes: "200,304"
+    state: present
+    # wait: true
+    targets:
+      - Id: "{{ az1_ec2_instance_info.instances[0].instance_id }}"
+        Port: 443
+      - Id: "{{ az2_ec2_instance_info.instances[0].instance_id }}"
+        Port: 443
+  register: tg_info
+
+- name: Create the Application Load Balancer
+  elb_application_lb:
+    aws_access_key: "{{ ACCESS_KEY }}"
+    aws_secret_key: "{{ SECRET_KEY }}"
+    name: "my-alb"
+    region: "{{ region }}"
+    security_groups:
+      - "{{ sg_public_info.group_id }}"
+    subnets:
+      - "{{ public_subnets_info.results[0].subnet.id }}"
+      - "{{ public_subnets_info.results[1].subnet.id }}"
+    scheme: internet-facing
+    # validate_certs: no
+    listeners:
+      # - Protocol: HTTP
+      #   Port: 80
+      #   DefaultActions:
+      #     - Type: forward
+      #       TargetGroupName: alb-target-group
+      - Protocol: HTTPS
+        Port: 443
+        SslPolicy: ELBSecurityPolicy-2015-05
+        Certificates: # The ARN of the certificate (only one certficate ARN should be provided)
+          - CertificateArn: "{{ arn_certificate }}"
+        DefaultActions:
+          - Type: forward
+            TargetGroupName: alb-target-group
+    state: present
+  register: alb_info
+
+- name: set facts
+  set_fact:
+    HOST_IP: "{{ alb_info.dns_name }}"
+    DB_HOST: "{{ db_instance_info.instances[0].private_ip_address }}"
+
+- name: show alb dns
+  debug:
+    msg:
+      - "az1 instance public ip: {{ az1_ec2_instance_info.instances[0].public_ip_address }}"
+      - "az2 instance public ip: {{ az2_ec2_instance_info.instances[0].public_ip_address }}"
+      - "load balancer dns: {{ alb_info.dns_name }}"
+
+
+# - name: Create AZ-2 target group 
+#   community.aws.elb_target_group:
+#     aws_access_key: "{{ ACCESS_KEY }}"
+#     aws_secret_key: "{{ SECRET_KEY }}"
+#     name: az1-target-group
+#     protocol: http
+#     port: 80
+#     vpc_id: "{{ vpc_info.vpc.id }}"
+#     region: "{{ region }}"
+#     state: present
+#     wait: true
+#     targets:
+#       - id: "{{ az2_ec2_instance_info.instances[0].instance_id }}"
+#         port: 80
+#   register: az2_tg_info
+
+- name: Refresh inventory to ensure new instaces exist in inventory
+  meta: refresh_inventory

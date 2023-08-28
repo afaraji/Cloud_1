@@ -1,0 +1,123 @@
+---
+
+- name: clean up everything
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - config.yml
+  tasks:
+    - name: Grab VPC details
+      ec2_vpc_net_info:
+        access_key: "{{ ACCESS_KEY }}"
+        secret_key: "{{ SECRET_KEY }}"
+        region: "{{ region }}"
+        filters:
+          "tag:name": "my_vpc"
+      register: vpcs
+    # - name: terminate all ec2 Instances
+    # - name: terminate RDS (database)
+    # - name: delete app load balancer
+    # - name: delete security group
+    # - name: delete route tables
+    - name: remove Application load balancer
+      elb_application_lb:
+        aws_access_key: "{{ ACCESS_KEY }}"
+        aws_secret_key: "{{ SECRET_KEY }}"
+        name: "my-alb"
+        region: "{{ region }}"
+        state: absent
+
+    - name: remove target group
+      elb_target_group:
+        access_key: "{{ ACCESS_KEY }}"
+        secret_key: "{{ SECRET_KEY }}"
+        region: "{{ region }}"
+        name: alb-target-group
+        state: absent
+
+
+    - name: delete EC2s
+      ec2_instance:
+        state: absent
+        access_key: "{{ ACCESS_KEY }}"
+        secret_key: "{{ SECRET_KEY }}"
+        region: "{{ region }}"
+        filters:
+          instance-state-name: running
+        wait: true
+    
+    - name: delete private security groups
+      ec2_group:
+        state: absent
+        access_key: "{{ ACCESS_KEY }}"
+        secret_key: "{{ SECRET_KEY }}"
+        region: "{{ region }}"
+        name: "SG_private"
+
+    - name: delete public security groups
+      ec2_group:
+        state: absent
+        access_key: "{{ ACCESS_KEY }}"
+        secret_key: "{{ SECRET_KEY }}"
+        region: "{{ region }}"
+        name: "SG_public"
+
+    - name: delete route table
+      ec2_vpc_route_table:
+        access_key: "{{ ACCESS_KEY }}"
+        secret_key: "{{ SECRET_KEY }}"
+        vpc_id: "{{ vpcs.vpcs[0].vpc_id }}"
+        region: "{{ region }}"
+        lookup: tag
+        tags:
+          name: Public routing for "{{ item }}"
+        state: absent
+      loop: ["{{ region }}a", "{{ region }}b"]
+
+    - name: Delete Internet gateway
+      tags: 
+        - clean
+      ec2_vpc_igw:
+        state: absent
+        access_key: "{{ ACCESS_KEY }}"
+        secret_key: "{{ SECRET_KEY }}"
+        region: "{{ region }}"
+        vpc_id: "{{ vpcs.vpcs[0].vpc_id }}"
+      register: vpc_igw_delete
+
+    - name: delete private subnets
+      tags:
+        - clean
+      ec2_vpc_subnet:
+        state: absent
+        access_key: "{{ ACCESS_KEY }}"
+        secret_key: "{{ SECRET_KEY }}"
+        vpc_id: "{{ vpcs.vpcs[0].vpc_id }}"
+        cidr: "{{ item.cidr_block }}"
+        region: "{{ region }}"
+      loop: "{{ private_subnets }}"
+
+    - name: delete public subnets
+      tags:
+        - clean
+      ec2_vpc_subnet:
+        state: absent
+        access_key: "{{ ACCESS_KEY }}"
+        secret_key: "{{ SECRET_KEY }}"
+        vpc_id: "{{ vpcs.vpcs[0].vpc_id }}"
+        cidr: "{{ item.cidr_block }}"
+        region: "{{ region }}"
+      loop: "{{ public_subnets }}"
+
+    - name: delete vpc
+      tags:
+        - clean
+      ec2_vpc_net:
+        name: my_vpc
+        state: absent
+        access_key: "{{ ACCESS_KEY }}"
+        secret_key: "{{ SECRET_KEY }}"
+        cidr_block: "{{ vpc_cidr }}"
+        region: "{{ region }}"
+        purge_cidrs: true

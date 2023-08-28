@@ -1,0 +1,210 @@
+version: '3'
+
+services:
+# phpmyadmin
+  phpmyadmin:
+    depends_on:
+      - db
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    restart: always
+    ports:
+      - '8888:80'
+    networks:
+      - wpsite
+    env_file:
+      - .env
+
+# Database
+  db:
+    build: ./requirements/mariadb/
+    image: mariadb
+    container_name: mariadb
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: always
+    networks:
+      - wpsite
+    env_file:
+      - .env
+
+# load-balancer
+  haproxy:
+    depends_on:
+      - nginx1
+      - nginx2
+    build: ./requirements/haproxy/
+    image: haproxy
+    container_name: haproxy
+    restart: always
+    ports:
+      - '443:443'
+    # volumes:
+    #   - ./requirements/haproxy/conf:/usr/local/etc/haproxy
+    networks:
+      - wpsite
+    env_file:
+      - .env
+
+# # Wordpress
+#   wordpress:
+#     depends_on:
+#       - db
+#     image: wordpress
+#     build: ./requirements/wordpress/
+#     container_name: wordpress
+#     restart: always
+#     volumes:
+#       - wp_html:/var/www/html
+#     env_file:
+#       - .env
+#     networks:
+#       - wpsite
+
+# # nginx
+#   nginx:
+#     build: 
+#       context: ./requirements/nginx/
+#       args:
+#         WP_PORT: "9000"
+#         WP_N: ""
+#     image: nginx
+#     container_name: nginx
+#     depends_on:
+#       - wordpress
+#     volumes:
+#       - wp_html:/var/www/html
+#     ports:
+#       - 443:443
+#       - 80:80
+#     restart: always
+#     env_file:
+#       - .env
+#     networks:
+#       - wpsite
+
+# Wordpress
+  wordpress1:
+    depends_on:
+      - db
+    image: wordpress1
+    build: 
+      context: ./requirements/wordpress/
+      args:
+        WP_PORT: "9001"
+    container_name: wordpress1
+    restart: always
+    environment:
+      WP_PORT: "9001"
+      WP_N: "1"
+    volumes:
+      - wp_html:/var/www/html
+    env_file:
+      - .env
+    networks:
+      - wpsite
+  
+  wordpress2:
+    depends_on:
+      - db
+    image: wordpress2
+    build: 
+      context: ./requirements/wordpress/
+      args:
+        WP_PORT: "9002"
+    container_name: wordpress2
+    restart: always
+    environment:
+      WP_PORT: "9002"
+      WP_N: "2"
+    volumes:
+      - wp_html2:/var/www/html
+    env_file:
+      - .env
+    networks:
+      - wpsite
+
+
+
+# nginx
+  nginx1:
+    build:
+      context: ./requirements/nginx/
+      args:
+        WP_PORT: "9001"
+        WP_N: "1"
+    image: nginx1
+    container_name: nginx1
+    depends_on:
+      - wordpress1
+    volumes:
+      - wp_html:/var/www/html
+    ports:
+      - 4431:443
+      - 8081:80
+    restart: always
+    environment:
+      WP_PORT: "9001"
+      WP_N: "1"
+    env_file:
+      - .env
+    networks:
+      - wpsite
+
+  nginx2:
+    build: 
+      context: ./requirements/nginx/
+      args:
+        WP_PORT: "9002"
+        WP_N: "2"
+    image: nginx2
+    container_name: nginx2
+    depends_on:
+      - wordpress2
+    volumes:
+      - wp_html2:/var/www/html
+    ports:
+      - 4432:443
+      - 8082:80
+    restart: always
+    environment:
+      WP_PORT: "9002"
+      WP_N: "2"
+    env_file:
+      - .env
+    networks:
+      - wpsite
+
+# Network setup
+networks:
+  wpsite:
+
+# Volumes setup
+volumes:
+  db_data:
+    name: db_data
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /data/db_data
+
+  wp_html:
+    name: wp_html
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /data/wp_data
+  
+  wp_html2:
+    name: wp_html2
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /data/wp_data2
+
+
+# sudo docker-compose down --rmi all --> stop all and delete all images
+# docker network inspect srcs_wpsite | grep "Name\|IPv4Address"
