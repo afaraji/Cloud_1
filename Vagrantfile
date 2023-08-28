@@ -43,6 +43,3 @@ Vagrant.configure("2") do |config|
 	end
 end
 
-# github pw
-# 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
-# need to impliment ansible vault, test phpmysql, remove public ip for db
